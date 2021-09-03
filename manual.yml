@@ -1,0 +1,53 @@
+name: ip-based-recon
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+
+      - name: Setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14
+
+      - name: Install hakrevdns for looking up IP addresses
+        run: 
+          go get github.com/hakluke/hakrevdns
+        shell: bash
+
+      - name: Setting up the files
+        run:
+          wget http://<YOUR_SERVER>/subdomains.txt
+        shell: bash
+
+      - name: Using censys api to extract the IPs
+        run: |
+          wget http://<YOUR_SERVER>/censys-api-bashfu.sh
+          chmod +x censys-api-bashfu.sh && ./censys-api-bashfu.sh
+        shell: bash
+
+      - name: Performing reverse lookups
+        run: 
+          cat final-ips.txt | hakrevdns > hak-resolved.txt
+
+      - name: Making local changes
+        run: |
+          git add final-ips.txt
+          git add hak-resolved.txt
+
+      - name: Commit changes to the repo
+        run: |
+          git config --local user.email "<EMAIL>"
+          git config --global user.name "<USERNAME>"
+          git commit -m "Actions updated" -a --allow-empty
+
+      - name: Push changes bro
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.SECRET_TOKEN }}
+          branch: ${{ github.ref }}
